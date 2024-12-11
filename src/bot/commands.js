@@ -11,6 +11,17 @@ class BotCommands {
   setupMessageListener() {
     // Store all incoming messages
     this.bot.on('message', async (msg) => {
+      // Log all incoming messages, including commands
+      console.log(`\nReceived message in chat:
+        Chat ID: ${msg.chat.id}
+        Chat Type: ${msg.chat.type}
+        Chat Title: ${msg.chat.title || 'Private Chat'}
+        From User: ${msg.from.username || 'Unknown'} (ID: ${msg.from.id})
+        Message Type: ${msg.text ? 'Text' : 'Other'}
+        Content: ${msg.text || 'Non-text content'}
+        Timestamp: ${new Date(msg.date * 1000).toISOString()}
+      `);
+
       if (msg.text && !msg.text.startsWith('/')) {
         try {
           const { Message, TelegramGroup } = require('../database');
