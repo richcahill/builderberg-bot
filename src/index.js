@@ -22,8 +22,11 @@ bot.on('polling_error', (error) => {
 });
 
 // Initialize bot commands
+console.log('Initializing bot commands and message listener...');
 const botCommands = new BotCommands(bot, process.env.OPENAI_API_KEY);
+console.log('Setting up bot commands...');
 botCommands.setupCommands();
+console.log('Bot commands setup completed');
 
 // Log successful bot initialization
 bot.getMe().then((botInfo) => {

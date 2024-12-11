@@ -3,9 +3,12 @@ const MessageFormatter = require('./formatter');
 
 class BotCommands {
   constructor(bot, openaiApiKey) {
+    console.log('Initializing BotCommands...');
     this.bot = bot;
     this.summarizer = new Summarizer(openaiApiKey);
+    console.log('Setting up message listener...');
     this.setupMessageListener();
+    console.log('Message listener setup completed');
   }
 
   setupMessageListener() {

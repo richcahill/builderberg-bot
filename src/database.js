@@ -2,9 +2,14 @@ require('dotenv').config();
 const { Sequelize, DataTypes } = require('sequelize');
 
 // Initialize Sequelize with PostgreSQL connection
+console.log('Setting up database connection...');
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL environment variable is not set!');
+  process.exit(1);
+}
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
-  logging: console.log,
+  logging: (msg) => console.log('Database Query:', msg),
   dialectOptions: {
     ssl: {
       require: true,
