@@ -1,6 +1,6 @@
 class MessageFormatter {
-  static formatSummary(summary) {
-    const header = '📝 <b>Conversation Summary</b>\n\n';
+  static formatSummary(summary, timeframe = '') {
+    const header = `📝 <b>Conversation Summary${timeframe ? ` - ${timeframe}` : ''}</b>\n\n`;
     const formattedBody = summary
       .split('\n')
       .map(line => line.trim())
