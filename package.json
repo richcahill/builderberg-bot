@@ -13,9 +13,6 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "node-telegram-bot-api": "^0.66.0",
-    "openai": "^4.76.1",
-    "pg": "^8.13.1",
-    "redis": "^4.7.0",
-    "sequelize": "^6.37.5"
+    "openai": "^4.76.1"
   }
 }
