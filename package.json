@@ -1,0 +1,19 @@
+{
+  "name": "telegramsummarybot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-telegram-bot-api": "^0.66.0",
+    "openai": "^4.76.1",
+    "redis": "^4.7.0"
+  }
+}

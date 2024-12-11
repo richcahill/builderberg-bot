@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 def run_flask():
     """Run the Flask application"""
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=5000, debug=False)
 
 async def run_bot():
     """Run the Telegram bot"""
