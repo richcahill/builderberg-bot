@@ -87,7 +87,13 @@ async function initDatabase() {
 }
 
 // Initialize database when this module is imported
-initDatabase();
+console.log('Initializing database connection...');
+console.log('Database URL:', process.env.DATABASE_URL ? 'Present (hidden)' : 'Missing');
+initDatabase().then(() => {
+  console.log('Database initialization completed');
+}).catch(error => {
+  console.error('Database initialization failed:', error);
+});
 
 module.exports = {
   sequelize,

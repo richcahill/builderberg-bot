@@ -37,9 +37,18 @@ class BotCommands {
             timestamp: new Date(msg.date * 1000)
           });
 
-          console.log(`Stored message from ${msg.from.username || 'Unknown'}: ${msg.text}`);
+          console.log(`Successfully stored message in database:
+            From: ${msg.from.username || 'Unknown'}
+            Content: ${msg.text}
+            Chat ID: ${msg.chat.id}
+            Message ID: ${msg.message_id}
+            Timestamp: ${new Date(msg.date * 1000).toISOString()}`);
         } catch (error) {
           console.error('Error storing message:', error);
+          console.error('Error details:', error.message);
+          if (error.parent) {
+            console.error('Database error:', error.parent.message);
+          }
         }
       }
     });
