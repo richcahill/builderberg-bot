@@ -57,8 +57,15 @@ node src/index.js
 
 ## Commands
 
-- `/summarize` - Generates a summary of recent messages in the chat
-- More commands coming soon!
+Available commands for interacting with the bot:
+
+- `/start` - Start the bot and display the welcome message
+- `/help` - Show all available commands and usage instructions
+- `/summarize` - Generate a summary of the last 20 messages in the chat
+- `/summarize_day` - Generate a summary of all messages sent today (since 00:01 GMT)
+- `/summarize_week` - Generate a summary of all messages from the last 7 days
+
+Note: The bot must be an administrator in the group chat for all features to work correctly. Ensure the bot has permissions to read and send messages.
 
 ## Database Schema
 
