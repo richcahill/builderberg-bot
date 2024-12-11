@@ -24,6 +24,29 @@ class BotCommands {
   }
 
   setupCommands() {
+    // Set up bot commands in Telegram
+    this.bot.setMyCommands([
+      { command: 'ai_summarise', description: 'Generate an AI summary of recent chat messages' },
+      { command: 'help', description: 'Show available commands and their usage' }
+    ]);
+
+    // Help command handler
+    this.bot.onText(/\/help/, async (msg) => {
+      const chatId = msg.chat.id;
+      const helpText = `
+Available commands:
+/ai_summarise - Generate an AI summary of recent chat messages
+/help - Show this help message
+
+How to use:
+1. Add the bot to your group chat
+2. Send some messages in the chat
+3. Use /ai_summarise to get a summary of recent messages
+`;
+      await this.bot.sendMessage(chatId, helpText);
+    });
+
+    // AI Summarize command handler
     this.bot.onText(/\/ai_summarise/, async (msg) => {
       const chatId = msg.chat.id;
       try {
