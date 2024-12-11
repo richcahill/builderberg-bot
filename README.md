@@ -21,7 +21,7 @@ A Telegram bot that monitors group conversations and provides AI-powered summari
 
 1. Clone the repository:
 ```bash
-git clone [your-repository-url]
+git clone https://github.com/richcahill/builderberg-bot
 cd telegram-summary-bot
 ```
 
@@ -84,4 +84,4 @@ MIT License. See [LICENSE](LICENSE) file for details.
 
 ## Support
 
-For support, please [create an issue](your-repository-url/issues) on GitHub.
+For support, please [create an issue](https://github.com/richcahill/builderberg-bot/issues) on GitHub.
