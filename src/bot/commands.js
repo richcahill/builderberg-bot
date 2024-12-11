@@ -5,7 +5,44 @@ class BotCommands {
   constructor(bot, openaiApiKey) {
     this.bot = bot;
     this.summarizer = new Summarizer(openaiApiKey);
-    this.messageStore = new Map();
+    this.setupMessageListener();
+  }
+
+  setupMessageListener() {
+    // Store all incoming messages
+    this.bot.on('message', async (msg) => {
+      if (msg.text && !msg.text.startsWith('/')) {
+        try {
+          const { Message, TelegramGroup } = require('../database');
+          
+          // Ensure group exists in database
+          await TelegramGroup.findOrCreate({
+            where: { 
+              id: msg.chat.id 
+            },
+            defaults: {
+              title: msg.chat.title || 'Unknown Group',
+              join_date: new Date(),
+              is_active: true
+            }
+          });
+
+          // Store message
+          await Message.create({
+            telegram_message_id: msg.message_id,
+            group_id: msg.chat.id,
+            user_id: msg.from.id,
+            username: msg.from.username || 'Unknown',
+            content: msg.text,
+            timestamp: new Date(msg.date * 1000)
+          });
+
+          console.log(`Stored message from ${msg.from.username || 'Unknown'}: ${msg.text}`);
+        } catch (error) {
+          console.error('Error storing message:', error);
+        }
+      }
+    });
   }
 
   async fetchMessages(chatId, options = {}) {
@@ -13,43 +50,40 @@ class BotCommands {
       const { limit = 20, since = null } = options;
       console.log(`Fetching messages for chat ${chatId} with limit ${limit}${since ? ` since ${since.toISOString()}` : ''}`);
       
-      const updates = await this.bot.getUpdates({
-        chat_id: chatId,
-        limit: Math.min(100, limit) // Telegram API limit is 100
-      });
-      
-      console.log('Raw updates from Telegram:', JSON.stringify(updates, null, 2));
-      console.log(`Retrieved ${updates.length} updates from Telegram`);
-      
-      let messages = updates
-        .filter(update => {
-          const hasMessage = Boolean(update.message && update.message.text);
-          console.log(`Update ${update.update_id}: Has message: ${hasMessage}`);
-          if (hasMessage) {
-            console.log(`Message content: "${update.message.text}" from ${update.message.from.username || 'Unknown'}`);
-          }
-          return hasMessage;
-        })
-        .map(update => ({
-          text: update.message.text,
-          date: new Date(update.message.date * 1000),
-          from: update.message.from.username || 'Unknown'
-        }));
+      const { Message } = require('../database');
+      const { Op } = require('sequelize');
 
-      console.log(`Filtered to ${messages.length} text messages:`, 
-        messages.map(m => `${m.from}: "${m.text}" at ${m.date.toISOString()}`));
+      // Build query conditions
+      const where = {
+        group_id: chatId
+      };
       
       if (since) {
-        const beforeFilter = messages.length;
-        messages = messages.filter(msg => msg.date >= since);
-        console.log(`Time-filtered from ${beforeFilter} to ${messages.length} messages (after ${since.toISOString()}):`,
-          messages.map(m => `${m.from}: "${m.text}" at ${m.date.toISOString()}`));
+        where.timestamp = {
+          [Op.gte]: since
+        };
       }
 
-      const finalMessages = messages.map(msg => msg.text);
-      console.log('Final messages to summarize:', finalMessages);
+      // Fetch messages from database
+      const messages = await Message.findAll({
+        where,
+        order: [['timestamp', 'DESC']],
+        limit,
+        raw: true
+      });
+
+      console.log(`Retrieved ${messages.length} messages from database`);
       
-      return finalMessages;
+      // Log each message for debugging
+      messages.forEach(msg => {
+        console.log(`Message from ${msg.username} at ${msg.timestamp}: "${msg.content}"`);
+      });
+
+      // Format messages for summarization
+      const formattedMessages = messages.map(msg => `${msg.username}: ${msg.content}`);
+      console.log('Messages to summarize:', formattedMessages);
+      
+      return formattedMessages;
     } catch (error) {
       console.error('Error fetching messages:', error);
       throw error;
