@@ -2,47 +2,51 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const OpenAI = require('openai');
-const Redis = require('redis');
+const { sequelize, TelegramGroup, Message } = require('./database');
 
 // Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// Initialize Redis with retry strategy
-const redisClient = Redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-  retry_strategy: function(options) {
-    if (options.total_retry_time > 1000 * 60 * 60) {
-      // Stop retrying after 1 hour
-      return new Error('Retry time exhausted');
-    }
-    if (options.attempt > 10) {
-      // Stop retrying after 10 attempts
-      return undefined;
-    }
-    // Retry with exponential backoff
-    return Math.min(options.attempt * 100, 3000);
+// Test database connection
+async function initDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log('Successfully connected to PostgreSQL database');
+  } catch (error) {
+    console.error('Unable to connect to the database:', error);
   }
-});
+}
 
-let redisConnected = false;
-redisClient.on('error', err => {
-  console.log('Redis Client Error:', err.message);
-  redisConnected = false;
-});
-
-redisClient.on('connect', () => {
-  console.log('Successfully connected to Redis');
-  redisConnected = true;
-});
+// Initialize database connection
+initDatabase();
 
 // Initialize Express
 const app = express();
 const port = 5000;
 
 // Initialize Telegram Bot
+console.log('Initializing Telegram bot...');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+
+// Add bot error handler
+bot.on('error', (error) => {
+  console.error('Telegram bot error:', error.message);
+});
+
+// Add polling error handler
+bot.on('polling_error', (error) => {
+  console.error('Polling error:', error.message);
+});
+
+// Log successful bot initialization
+bot.getMe().then((botInfo) => {
+  console.log('Bot initialized successfully!');
+  console.log(`Bot username: @${botInfo.username}`);
+}).catch((error) => {
+  console.error('Error getting bot info:', error.message);
+});
 
 // Store messages in memory (we'll add database integration later)
 const messageStore = new Map();
@@ -97,46 +101,52 @@ function formatSummary(summary) {
 bot.onText(/\/ai_summarise/, async (msg) => {
   const chatId = msg.chat.id;
   try {
-    // Check cache first if Redis is connected
+    console.log(`Received summarize request from chat ${chatId}`);
+    let cacheKey = `summary_${chatId}`;
+
+    // Try cache first if Redis is available
     if (redisConnected) {
       try {
-        const cacheKey = `summary_${chatId}`;
         const cachedSummary = await redisClient.get(cacheKey);
-        
         if (cachedSummary) {
+          console.log('Using cached summary');
           await bot.sendMessage(chatId, cachedSummary, { parse_mode: 'HTML' });
           return;
         }
       } catch (error) {
-        console.log('Redis cache check failed:', error.message);
-        // Continue without cache if Redis fails
+        console.log('Redis cache check failed, continuing without cache:', error.message);
       }
     }
 
+    // Get messages from memory store
     const messages = messageStore.get(chatId) || [];
     if (messages.length === 0) {
-      await bot.sendMessage(chatId, "No messages to summarize yet!");
+      console.log('No messages found for summarization');
+      await bot.sendMessage(chatId, "No messages to summarize yet! Send some messages first.");
       return;
     }
 
+    // Generate and format summary
+    console.log(`Generating summary for ${messages.length} messages`);
     const summary = await generateSummary(messages);
     const formattedSummary = formatSummary(summary);
     
-    // Cache the formatted summary if Redis is connected
+    // Try to cache the result if Redis is available
     if (redisConnected) {
       try {
         await redisClient.set(cacheKey, formattedSummary, { EX: 3600 }); // 1 hour expiry
         console.log('Summary cached successfully');
       } catch (error) {
-        console.log('Failed to cache summary:', error.message);
-        // Continue without caching if Redis fails
+        console.log('Failed to cache summary, continuing without caching:', error.message);
       }
     }
     
+    // Send the response
+    console.log('Sending formatted summary to chat');
     await bot.sendMessage(chatId, formattedSummary, { parse_mode: 'HTML' });
   } catch (error) {
     console.error('Error in summarize command:', error);
-    await bot.sendMessage(chatId, "Sorry, I couldn't generate a summary at this time.");
+    await bot.sendMessage(chatId, "Sorry, I couldn't generate a summary at this time. Please try again later.");
   }
 });
 
@@ -194,7 +204,23 @@ process.on('unhandledRejection', (error) => {
   console.error('Unhandled rejection:', error);
 });
 
-process.on('SIGTERM', async () => {
-  await redisClient.quit();
+// Graceful shutdown handler
+async function shutdown(signal) {
+  console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
+  try {
+    if (redisConnected) {
+      console.log('Closing Redis connection...');
+      await redisClient.quit();
+    }
+    console.log('Stopping Telegram bot...');
+    bot.close();
+    console.log('Cleanup complete. Exiting...');
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+  }
   process.exit(0);
-});
+}
+
+// Handle termination signals
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
