@@ -18,21 +18,32 @@ class BotCommands {
         limit: Math.min(100, limit) // Telegram API limit is 100
       });
       
+      console.log('Raw updates from Telegram:', JSON.stringify(updates, null, 2));
       console.log(`Retrieved ${updates.length} updates from Telegram`);
       
       let messages = updates
-        .filter(update => update.message && update.message.text)
+        .filter(update => {
+          const hasMessage = Boolean(update.message && update.message.text);
+          console.log(`Update ${update.update_id}: Has message: ${hasMessage}`);
+          if (hasMessage) {
+            console.log(`Message content: "${update.message.text}" from ${update.message.from.username || 'Unknown'}`);
+          }
+          return hasMessage;
+        })
         .map(update => ({
           text: update.message.text,
-          date: new Date(update.message.date * 1000)
+          date: new Date(update.message.date * 1000),
+          from: update.message.from.username || 'Unknown'
         }));
 
-      console.log(`Filtered to ${messages.length} text messages`);
+      console.log(`Filtered to ${messages.length} text messages:`, 
+        messages.map(m => `${m.from}: "${m.text}" at ${m.date.toISOString()}`));
       
       if (since) {
         const beforeFilter = messages.length;
         messages = messages.filter(msg => msg.date >= since);
-        console.log(`Time-filtered from ${beforeFilter} to ${messages.length} messages (after ${since.toISOString()})`);
+        console.log(`Time-filtered from ${beforeFilter} to ${messages.length} messages (after ${since.toISOString()}):`,
+          messages.map(m => `${m.from}: "${m.text}" at ${m.date.toISOString()}`));
       }
 
       const finalMessages = messages.map(msg => msg.text);
