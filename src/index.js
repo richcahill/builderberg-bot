@@ -54,8 +54,23 @@ async function startServer() {
 }
 
 // Start everything
-startServer().catch((error) => {
-  console.error('Fatal error starting server:', error);
+async function startApplication() {
+  try {
+    // First ensure database is initialized
+    const { sequelize } = require('./database');
+    await sequelize.authenticate();
+    console.log('Database connection has been established successfully.');
+    
+    // Then start the server and bot
+    await startServer();
+  } catch (error) {
+    console.error('Fatal error starting application:', error);
+    process.exit(1);
+  }
+}
+
+startApplication().catch((error) => {
+  console.error('Fatal error:', error);
   process.exit(1);
 });
 

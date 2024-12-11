@@ -109,6 +109,12 @@ class BotCommands {
       `);
 
       if (msg.text && !msg.text.startsWith('/')) {
+        console.log(`Processing new message:
+          Chat ID: ${msg.chat.id}
+          Message ID: ${msg.message_id}
+          From: ${msg.from.username || 'Unknown'}
+          Content: ${msg.text}
+        `);
         try {
           const { Message, TelegramGroup } = require('../database');
           
@@ -210,11 +216,37 @@ class BotCommands {
   setupCommands() {
     // Set up bot commands in Telegram
     this.bot.setMyCommands([
+      { command: 'start', description: 'Start the bot and show welcome message' },
       { command: 'summarize', description: 'Summarize the last 20 messages' },
       { command: 'summarize_day', description: 'Summarize all messages from today' },
       { command: 'summarize_week', description: 'Summarize all messages from the last 7 days' },
       { command: 'help', description: 'Show available commands and usage' }
-    ]);
+    ]).then(() => {
+      console.log('Bot commands registered successfully');
+    }).catch(error => {
+      console.error('Error registering bot commands:', error);
+    });
+
+    // Add start command handler
+    this.bot.onText(/\/start/, async (msg) => {
+      const chatId = msg.chat.id;
+      const welcomeMessage = `
+👋 Hello! I'm your group chat summarizer bot.
+
+I can help you keep track of conversations by providing AI-powered summaries. Here are my commands:
+
+/summarize - Get a summary of the last 20 messages
+/summarize_day - Get a summary of today's messages
+/summarize_week - Get a summary of the last 7 days
+/help - Show this help message
+
+To get started:
+1. Make sure I'm an admin in this group
+2. Send some messages
+3. Use any of the commands above to get a summary!
+`;
+      await this.bot.sendMessage(chatId, welcomeMessage);
+    });
 
     // Help command handler
     this.bot.onText(/\/help/, async (msg) => {

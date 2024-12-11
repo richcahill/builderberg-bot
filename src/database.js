@@ -15,6 +15,17 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
       require: true,
       rejectUnauthorized: false
     }
+  },
+  pool: {
+    max: 5,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  },
+  retry: {
+    max: 5,
+    backoffBase: 1000,
+    backoffExponent: 1.5
   }
 });
 
@@ -92,13 +103,27 @@ async function initDatabase() {
 }
 
 // Initialize database when this module is imported
-console.log('Initializing database connection...');
-console.log('Database URL:', process.env.DATABASE_URL ? 'Present (hidden)' : 'Missing');
-initDatabase().then(() => {
-  console.log('Database initialization completed');
-}).catch(error => {
-  console.error('Database initialization failed:', error);
-});
+(async () => {
+  console.log('Initializing database connection...');
+  if (!process.env.DATABASE_URL) {
+    console.error('ERROR: DATABASE_URL environment variable is not set!');
+    process.exit(1);
+  }
+  console.log('Database URL:', 'Present (hidden)');
+  
+  try {
+    await sequelize.authenticate();
+    console.log('Successfully connected to PostgreSQL database');
+    await sequelize.sync();
+    console.log('Database tables created/synchronized successfully');
+  } catch (error) {
+    console.error('Database initialization failed:', error.message);
+    if (error.original) {
+      console.error('Original error:', error.original.message);
+    }
+    // Don't exit process, allow retry logic to handle temporary connection issues
+  }
+})();
 
 module.exports = {
   sequelize,
