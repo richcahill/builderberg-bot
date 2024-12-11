@@ -80,7 +80,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-[Your chosen license]
+MIT License. See [LICENSE](LICENSE) file for details.
 
 ## Support
 
