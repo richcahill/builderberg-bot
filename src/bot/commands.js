@@ -6,14 +6,97 @@ class BotCommands {
     console.log('Initializing BotCommands...');
     this.bot = bot;
     this.summarizer = new Summarizer(openaiApiKey);
+    
+    // Check bot permissions on startup
+    this.bot.getMe().then(botInfo => {
+      console.log('Bot configuration:', {
+        id: botInfo.id,
+        username: botInfo.username,
+        firstName: botInfo.first_name,
+        canJoinGroups: botInfo.can_join_groups,
+        canReadAllGroupMessages: botInfo.can_read_all_group_messages,
+        supportsInlineQueries: botInfo.supports_inline_queries
+      });
+      
+      if (!botInfo.can_read_all_group_messages) {
+        console.warn('\n⚠️ IMPORTANT: Privacy mode is enabled for this bot!');
+        console.warn('To allow the bot to read group messages, please:');
+        console.warn('1. Message @BotFather');
+        console.warn('2. Use /mybots command');
+        console.warn('3. Select this bot');
+        console.warn('4. Go to Bot Settings > Group Privacy');
+        console.warn('5. Disable privacy mode');
+        console.warn('6. Remove and re-add the bot to your groups\n');
+      }
+    }).catch(error => {
+      console.error('Error getting bot info:', error);
+    });
+
     console.log('Setting up message listener...');
     this.setupMessageListener();
     console.log('Message listener setup completed');
   }
 
   setupMessageListener() {
+    // Handle new chat members (including the bot itself)
+    this.bot.on('new_chat_members', async (msg) => {
+      const newMembers = msg.new_chat_members;
+      for (const member of newMembers) {
+        if (member.is_bot && member.username === (await this.bot.getMe()).username) {
+          console.log(`Bot was added to chat "${msg.chat.title}" (ID: ${msg.chat.id})`);
+          try {
+            const chatAdmins = await this.bot.getChatAdministrators(msg.chat.id);
+            const isBotAdmin = chatAdmins.some(admin => 
+              admin.user.username === member.username
+            );
+            console.log(`Bot admin status in "${msg.chat.title}":`, {
+              isAdmin: isBotAdmin,
+              totalAdmins: chatAdmins.length
+            });
+            
+            if (!isBotAdmin) {
+              await this.bot.sendMessage(msg.chat.id, 
+                "⚠️ Please make me an administrator to ensure all features work correctly!"
+              );
+            }
+          } catch (error) {
+            console.error(`Error checking admin status in chat ${msg.chat.title}:`, error);
+          }
+        }
+      }
+    });
+
     // Store all incoming messages
     this.bot.on('message', async (msg) => {
+      // Check if bot has necessary permissions
+      if (msg.chat.type === 'group' || msg.chat.type === 'supergroup') {
+        try {
+          // Get bot's own ID
+          const botInfo = await this.bot.getMe();
+          // Check bot's permissions in the group
+          const botMember = await this.bot.getChatMember(msg.chat.id, botInfo.id);
+          console.log(`Bot permissions in chat ${msg.chat.title}:`, {
+            chatType: msg.chat.type,
+            chatId: msg.chat.id,
+            botId: botInfo.id,
+            botUsername: botInfo.username,
+            isAdmin: botMember.status === 'administrator',
+            canReadMessages: botInfo.can_read_all_group_messages,
+            permissions: botMember
+          });
+
+          if (!botInfo.can_read_all_group_messages) {
+            console.warn(`⚠️ Privacy mode is enabled for bot ${botInfo.username}. Please disable it through @BotFather to read group messages.`);
+          }
+          
+          if (botMember.status !== 'administrator') {
+            console.warn(`⚠️ Bot ${botInfo.username} is not an administrator in chat ${msg.chat.title}. Some features may be limited.`);
+          }
+        } catch (error) {
+          console.error(`Error checking bot permissions in chat ${msg.chat.title}:`, error.message);
+          console.error('Full error:', error);
+        }
+      }
       // Log all incoming messages, including commands
       console.log(`\nReceived message in chat:
         Chat ID: ${msg.chat.id}
@@ -21,7 +104,7 @@ class BotCommands {
         Chat Title: ${msg.chat.title || 'Private Chat'}
         From User: ${msg.from.username || 'Unknown'} (ID: ${msg.from.id})
         Message Type: ${msg.text ? 'Text' : 'Other'}
-        Content: ${msg.text || 'Non-text content'}
+        Content: ${msg.text ? (msg.text.startsWith('/') ? 'Command: ' + msg.text : 'Message: ' + msg.text) : 'Non-text content'}
         Timestamp: ${new Date(msg.date * 1000).toISOString()}
       `);
 
