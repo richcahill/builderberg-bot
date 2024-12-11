@@ -48,8 +48,22 @@ bot.getMe().then((botInfo) => {
   console.error('Error getting bot info:', error.message);
 });
 
-// Store messages in memory (we'll add database integration later)
-const messageStore = new Map();
+// Helper function to fetch recent messages from chat
+async function fetchRecentMessages(chatId) {
+  try {
+    const messages = await bot.getUpdates({
+      chat_id: chatId,
+      limit: 100  // Fetch last 100 messages
+    });
+    
+    return messages
+      .filter(update => update.message && update.message.text)
+      .map(update => update.message.text);
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    throw error;
+  }
+}
 
 // Helper function to generate summary
 async function generateSummary(messages) {
@@ -102,24 +116,9 @@ bot.onText(/\/ai_summarise/, async (msg) => {
   const chatId = msg.chat.id;
   try {
     console.log(`Received summarize request from chat ${chatId}`);
-    let cacheKey = `summary_${chatId}`;
 
-    // Try cache first if Redis is available
-    if (redisConnected) {
-      try {
-        const cachedSummary = await redisClient.get(cacheKey);
-        if (cachedSummary) {
-          console.log('Using cached summary');
-          await bot.sendMessage(chatId, cachedSummary, { parse_mode: 'HTML' });
-          return;
-        }
-      } catch (error) {
-        console.log('Redis cache check failed, continuing without cache:', error.message);
-      }
-    }
-
-    // Get messages from memory store
-    const messages = messageStore.get(chatId) || [];
+    // Fetch recent messages from chat
+    const messages = await fetchRecentMessages(chatId);
     if (messages.length === 0) {
       console.log('No messages found for summarization');
       await bot.sendMessage(chatId, "No messages to summarize yet! Send some messages first.");
@@ -130,16 +129,6 @@ bot.onText(/\/ai_summarise/, async (msg) => {
     console.log(`Generating summary for ${messages.length} messages`);
     const summary = await generateSummary(messages);
     const formattedSummary = formatSummary(summary);
-    
-    // Try to cache the result if Redis is available
-    if (redisConnected) {
-      try {
-        await redisClient.set(cacheKey, formattedSummary, { EX: 3600 }); // 1 hour expiry
-        console.log('Summary cached successfully');
-      } catch (error) {
-        console.log('Failed to cache summary, continuing without caching:', error.message);
-      }
-    }
     
     // Send the response
     console.log('Sending formatted summary to chat');
@@ -171,22 +160,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy' });
 });
 
-// Start the server and connect to Redis
+// Start the server
 async function startServer() {
   try {
-    // Start Express server first
+    // Start Express server
     app.listen(port, '0.0.0.0', () => {
       console.log(`Server is running on port ${port}`);
     });
-
-    // Try to connect to Redis, but don't fail if it's not available
-    try {
-      await redisClient.connect();
-      console.log('Connected to Redis');
-    } catch (error) {
-      console.log('Redis connection failed, continuing without caching:', error.message);
-      // Continue without Redis
-    }
   } catch (error) {
     console.error('Error starting server:', error);
     process.exit(1);
@@ -208,10 +188,6 @@ process.on('unhandledRejection', (error) => {
 async function shutdown(signal) {
   console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
   try {
-    if (redisConnected) {
-      console.log('Closing Redis connection...');
-      await redisClient.quit();
-    }
     console.log('Stopping Telegram bot...');
     bot.close();
     console.log('Cleanup complete. Exiting...');
