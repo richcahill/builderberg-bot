@@ -11,10 +11,14 @@ class BotCommands {
   async fetchMessages(chatId, options = {}) {
     try {
       const { limit = 20, since = null } = options;
+      console.log(`Fetching messages for chat ${chatId} with limit ${limit}${since ? ` since ${since.toISOString()}` : ''}`);
+      
       const updates = await this.bot.getUpdates({
         chat_id: chatId,
         limit: Math.min(100, limit) // Telegram API limit is 100
       });
+      
+      console.log(`Retrieved ${updates.length} updates from Telegram`);
       
       let messages = updates
         .filter(update => update.message && update.message.text)
@@ -23,11 +27,18 @@ class BotCommands {
           date: new Date(update.message.date * 1000)
         }));
 
+      console.log(`Filtered to ${messages.length} text messages`);
+      
       if (since) {
+        const beforeFilter = messages.length;
         messages = messages.filter(msg => msg.date >= since);
+        console.log(`Time-filtered from ${beforeFilter} to ${messages.length} messages (after ${since.toISOString()})`);
       }
 
-      return messages.map(msg => msg.text);
+      const finalMessages = messages.map(msg => msg.text);
+      console.log('Final messages to summarize:', finalMessages);
+      
+      return finalMessages;
     } catch (error) {
       console.error('Error fetching messages:', error);
       throw error;
