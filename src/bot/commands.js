@@ -77,11 +77,16 @@ class BotCommands {
     this.bot.on('message', async (msg) => {
       if (!msg.text || msg.text.startsWith('/')) return;
 
+      console.log(`Received message in chat ${msg.chat.id} from user ${msg.from.username || 'Unknown'}: ${msg.text.substring(0, 50)}...`);
+
       try {
         const { Message, TelegramGroup } = require('../database');
 
+        // Log database operations
+        console.log(`Storing message for chat ${msg.chat.id}`);
+
         // Ensure group exists in database
-        await TelegramGroup.findOrCreate({
+        const [group] = await TelegramGroup.findOrCreate({
           where: { id: msg.chat.id },
           defaults: {
             title: msg.chat.title || 'Unknown Group',
@@ -89,6 +94,7 @@ class BotCommands {
             is_active: true
           }
         });
+        console.log(`Group status: ${group.is_active ? 'active' : 'inactive'}`);
 
         // Store message
         await Message.create({
@@ -100,9 +106,10 @@ class BotCommands {
           timestamp: new Date(msg.date * 1000)
         });
 
-        console.log(`Stored message from ${msg.from.username || 'Unknown'} in chat ${msg.chat.id}`);
+        console.log(`Successfully stored message from ${msg.from.username || 'Unknown'} in chat ${msg.chat.id}`);
       } catch (error) {
         console.error('Error storing message:', error);
+        console.error('Full error details:', JSON.stringify(error, null, 2));
       }
     });
   }
@@ -120,6 +127,7 @@ class BotCommands {
 
       // Start command handler - update regex to handle bot username
       this.bot.onText(/^\/start(@\w+)?$/, async (msg) => {
+        console.log(`Received /start command in chat ${msg.chat.id} from user ${msg.from.username}`);
         const welcomeMessage = `
 👋 Hello! I'm your group chat summarizer bot.
 
@@ -140,6 +148,7 @@ To get started:
 
       // Help command handler - update regex to handle bot username
       this.bot.onText(/^\/help(@\w+)?$/, async (msg) => {
+        console.log(`Received /help command in chat ${msg.chat.id} from user ${msg.from.username}`);
         const helpText = `
 Available commands:
 /summarize - Summarize the last 20 messages
@@ -159,6 +168,7 @@ How to use:
       this.bot.onText(/^\/summarize(@\w+)?$/, async (msg) => {
         try {
           console.log(`Received /summarize command in chat ${msg.chat.id} from user ${msg.from.username}`);
+          console.log('Message object:', JSON.stringify(msg, null, 2));
           const messages = await this.fetchMessages(msg.chat.id, { limit: 20 });
           await this.generateAndSendSummary(msg.chat.id, messages, "Last 20 Messages");
         } catch (error) {
@@ -195,6 +205,7 @@ How to use:
         }
       });
 
+      console.log('Bot commands have been set up successfully');
     } catch (error) {
       console.error('Error setting up commands:', error);
       throw error;
