@@ -11,8 +11,10 @@ const port = 5000;
 console.log('Initializing Telegram bot...');
 const WEBHOOK_PATH = '/webhook/' + process.env.TELEGRAM_BOT_TOKEN;
 
-// Always use Replit URL in production
-const url = `https://${process.env.REPLIT_SLUG}.repl.co`;
+// Get Replit URL using REPL_ID and REPL_OWNER
+const REPL_OWNER = process.env.REPL_OWNER;
+const REPL_ID = process.env.REPL_ID;
+const url = `https://${REPL_ID}.id.repl.co`;
 const webhookUrl = url + WEBHOOK_PATH;
 
 console.log('Setting up webhook URL:', webhookUrl);
@@ -85,7 +87,8 @@ async function startServer() {
         }
       } catch (error) {
         console.error('Error setting webhook:', error);
-        process.exit(1);
+        // Don't exit the process, keep the server running
+        console.log('Server will continue running despite webhook error');
       }
     });
   } catch (error) {
@@ -105,6 +108,10 @@ process.on('unhandledRejection', (error) => {
   console.error('Unhandled rejection:', error);
 });
 
+// Keep the process running
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 // Graceful shutdown handler
 async function shutdown(signal) {
   console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
@@ -117,7 +124,3 @@ async function shutdown(signal) {
   }
   process.exit(0);
 }
-
-// Handle termination signals
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
