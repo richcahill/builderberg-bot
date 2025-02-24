@@ -118,8 +118,8 @@ class BotCommands {
         { command: 'help', description: 'Show available commands and usage' }
       ]);
 
-      // Start command handler
-      this.bot.onText(/^\/start$/, async (msg) => {
+      // Start command handler - update regex to handle bot username
+      this.bot.onText(/^\/start(@\w+)?$/, async (msg) => {
         const welcomeMessage = `
 👋 Hello! I'm your group chat summarizer bot.
 
@@ -138,8 +138,8 @@ To get started:
         await this.bot.sendMessage(msg.chat.id, welcomeMessage);
       });
 
-      // Help command handler
-      this.bot.onText(/^\/help$/, async (msg) => {
+      // Help command handler - update regex to handle bot username
+      this.bot.onText(/^\/help(@\w+)?$/, async (msg) => {
         const helpText = `
 Available commands:
 /summarize - Summarize the last 20 messages
@@ -155,9 +155,10 @@ How to use:
         await this.bot.sendMessage(msg.chat.id, helpText);
       });
 
-      // Summarize command handlers
-      this.bot.onText(/^\/summarize$/, async (msg) => {
+      // Summarize command handlers - update regex to handle bot username
+      this.bot.onText(/^\/summarize(@\w+)?$/, async (msg) => {
         try {
+          console.log(`Received /summarize command in chat ${msg.chat.id} from user ${msg.from.username}`);
           const messages = await this.fetchMessages(msg.chat.id, { limit: 20 });
           await this.generateAndSendSummary(msg.chat.id, messages, "Last 20 Messages");
         } catch (error) {
@@ -166,8 +167,9 @@ How to use:
         }
       });
 
-      this.bot.onText(/^\/summarize_day$/, async (msg) => {
+      this.bot.onText(/^\/summarize_day(@\w+)?$/, async (msg) => {
         try {
+          console.log(`Received /summarize_day command in chat ${msg.chat.id} from user ${msg.from.username}`);
           const messages = await this.fetchMessages(msg.chat.id, {
             limit: 100,
             since: this.getStartOfDay()
@@ -179,8 +181,9 @@ How to use:
         }
       });
 
-      this.bot.onText(/^\/summarize_week$/, async (msg) => {
+      this.bot.onText(/^\/summarize_week(@\w+)?$/, async (msg) => {
         try {
+          console.log(`Received /summarize_week command in chat ${msg.chat.id} from user ${msg.from.username}`);
           const messages = await this.fetchMessages(msg.chat.id, {
             limit: 100,
             since: this.getStartOfWeek()
