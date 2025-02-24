@@ -7,42 +7,69 @@ const BotCommands = require('./bot/commands');
 const app = express();
 const port = 5000;
 
-// Initialize Telegram Bot
+// Initialize Telegram Bot with webhook instead of polling
 console.log('Initializing Telegram bot...');
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+const WEBHOOK_PATH = '/webhook/' + process.env.TELEGRAM_BOT_TOKEN;
+const url = process.env.REPLIT_SLUG ? `https://${process.env.REPLIT_SLUG}.repl.co` : `http://localhost:${port}`;
+const webhookUrl = url + WEBHOOK_PATH;
+
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
+  webHook: {
+    port: port,
+    autoOpen: false
+  }
+});
 
 // Add bot error handler
 bot.on('error', (error) => {
   console.error('Telegram bot error:', error.message);
 });
 
-// Add polling error handler
-bot.on('polling_error', (error) => {
-  console.error('Polling error:', error.message);
-});
-
 // Initialize bot commands
 console.log('Initializing bot commands and message listener...');
 const botCommands = new BotCommands(bot, process.env.OPENAI_API_KEY);
 
-// Log successful bot initialization
-bot.getMe().then((botInfo) => {
-  console.log('Bot initialized successfully!');
-  console.log(`Bot username: @${botInfo.username}`);
-}).catch((error) => {
-  console.error('Error getting bot info:', error);
+// Express middleware
+app.use(express.json());
+
+// Webhook endpoint
+app.post(WEBHOOK_PATH, (req, res) => {
+  bot.handleUpdate(req.body);
+  res.sendStatus(200);
 });
 
-// Express routes
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'healthy' });
 });
 
-// Start the server
+// Start the server and set webhook
 async function startServer() {
   try {
-    app.listen(port, '0.0.0.0', () => {
+    // First ensure database is initialized
+    const { sequelize } = require('./database');
+    await sequelize.authenticate();
+    console.log('Database connection has been established successfully.');
+
+    // Start express server
+    app.listen(port, '0.0.0.0', async () => {
       console.log(`Server is running on port ${port}`);
+
+      try {
+        // Delete any existing webhook
+        await bot.deleteWebHook();
+
+        // Set the webhook
+        const webhookInfo = await bot.setWebHook(webhookUrl);
+        if (webhookInfo) {
+          console.log(`Webhook set successfully to ${webhookUrl}`);
+        } else {
+          throw new Error('Failed to set webhook');
+        }
+      } catch (error) {
+        console.error('Error setting webhook:', error);
+        process.exit(1);
+      }
     });
   } catch (error) {
     console.error('Error starting server:', error);
@@ -51,22 +78,7 @@ async function startServer() {
 }
 
 // Start everything
-async function startApplication() {
-  try {
-    // First ensure database is initialized
-    const { sequelize } = require('./database');
-    await sequelize.authenticate();
-    console.log('Database connection has been established successfully.');
-
-    // Then start the server and bot
-    await startServer();
-  } catch (error) {
-    console.error('Fatal error starting application:', error);
-    process.exit(1);
-  }
-}
-
-startApplication().catch((error) => {
+startServer().catch((error) => {
   console.error('Fatal error:', error);
   process.exit(1);
 });
@@ -80,8 +92,8 @@ process.on('unhandledRejection', (error) => {
 async function shutdown(signal) {
   console.log(`\nReceived ${signal}. Starting graceful shutdown...`);
   try {
-    console.log('Stopping Telegram bot...');
-    bot.close();
+    console.log('Removing webhook...');
+    await bot.deleteWebHook();
     console.log('Cleanup complete. Exiting...');
   } catch (error) {
     console.error('Error during shutdown:', error);
