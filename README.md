@@ -41,6 +41,23 @@ DATABASE_URL=your_postgresql_database_url
 4. Set up the database:
 The application will automatically create the necessary database tables on startup.
 
+## Bot Configuration
+
+Before running the bot, you need to configure it properly with @BotFather:
+
+1. Message [@BotFather](https://t.me/botfather) in Telegram
+2. Use `/setcommands` and send this list of commands:
+```
+start - Start the bot and show welcome message
+summarize - Summarize the last 20 messages
+summarize_day - Summarize all messages from today
+summarize_week - Summarize all messages from the last 7 days
+help - Show available commands and usage
+```
+3. Use `/setjoingroups` and select `Enable` to allow the bot to be added to groups
+4. Use `/setprivacy` and select `Disable` to allow the bot to see all messages in groups
+5. If you've previously added the bot to any groups, remove and re-add it for the new settings to take effect
+
 ## Usage
 
 1. Start the bot:

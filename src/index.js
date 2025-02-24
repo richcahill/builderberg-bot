@@ -10,8 +10,12 @@ const port = 5000;
 // Initialize Telegram Bot with webhook instead of polling
 console.log('Initializing Telegram bot...');
 const WEBHOOK_PATH = '/webhook/' + process.env.TELEGRAM_BOT_TOKEN;
-const url = process.env.REPLIT_SLUG ? `https://${process.env.REPLIT_SLUG}.repl.co` : `http://localhost:${port}`;
+
+// Always use Replit URL in production
+const url = `https://${process.env.REPLIT_SLUG}.repl.co`;
 const webhookUrl = url + WEBHOOK_PATH;
+
+console.log('Setting up webhook URL:', webhookUrl);
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
   webHook: {
@@ -32,8 +36,15 @@ const botCommands = new BotCommands(bot, process.env.OPENAI_API_KEY);
 // Express middleware
 app.use(express.json());
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
+
 // Webhook endpoint
 app.post(WEBHOOK_PATH, (req, res) => {
+  console.log('Received webhook update from Telegram');
   bot.handleUpdate(req.body);
   res.sendStatus(200);
 });
@@ -57,12 +68,18 @@ async function startServer() {
 
       try {
         // Delete any existing webhook
+        console.log('Removing existing webhook...');
         await bot.deleteWebHook();
 
         // Set the webhook
+        console.log(`Setting webhook to ${webhookUrl}`);
         const webhookInfo = await bot.setWebHook(webhookUrl);
         if (webhookInfo) {
-          console.log(`Webhook set successfully to ${webhookUrl}`);
+          console.log('Webhook set successfully');
+
+          // Verify webhook info
+          const info = await bot.getWebHookInfo();
+          console.log('Current webhook info:', info);
         } else {
           throw new Error('Failed to set webhook');
         }
