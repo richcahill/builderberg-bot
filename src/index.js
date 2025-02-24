@@ -24,16 +24,13 @@ bot.on('polling_error', (error) => {
 // Initialize bot commands
 console.log('Initializing bot commands and message listener...');
 const botCommands = new BotCommands(bot, process.env.OPENAI_API_KEY);
-console.log('Setting up bot commands...');
-botCommands.setupCommands();
-console.log('Bot commands setup completed');
 
 // Log successful bot initialization
 bot.getMe().then((botInfo) => {
   console.log('Bot initialized successfully!');
   console.log(`Bot username: @${botInfo.username}`);
 }).catch((error) => {
-  console.error('Error getting bot info:', error.message);
+  console.error('Error getting bot info:', error);
 });
 
 // Express routes
@@ -60,7 +57,7 @@ async function startApplication() {
     const { sequelize } = require('./database');
     await sequelize.authenticate();
     console.log('Database connection has been established successfully.');
-    
+
     // Then start the server and bot
     await startServer();
   } catch (error) {
